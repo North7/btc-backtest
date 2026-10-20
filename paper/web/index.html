@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Signal Tower · BTC 策略帳戶</title>
+<script>try { document.documentElement.dataset.theme = localStorage.getItem("theme") || "dark"; } catch (e) { document.documentElement.dataset.theme = "dark"; }</script>
+<link rel="icon" type="image/svg+xml" href="icon.svg">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <img class="logo" src="icon.svg" alt="" aria-hidden="true">
+    <div>
+      <h1>Signal Tower <span id="modeBadge" class="badge">紙上交易</span></h1>
+      <div class="brand-sub">BTC 策略帳戶 · S1 突破 × D 趨勢 · OKX 現貨</div>
+    </div>
+  </div>
+  <div class="meta">
+    <div class="chip"><span>現價</span><b id="price">—</b></div>
+    <div class="chip"><span>最後收盤 K 線</span><b id="lastBar">—</b></div>
+    <div class="chip"><span>下一根收盤</span><b id="countdown">—</b></div>
+    <div class="chip ghost" id="fresh"></div>
+  </div>
+  <div class="actions">
+    <button id="btnRefresh" title="從 OKX 抓最新資料並重算">⟳ 立即更新</button>
+    <button id="btnFill" title="記錄你在交易所的實際成交">＋ 記錄成交</button>
+    <button id="btnSettings">設定</button>
+    <button id="btnTheme" class="icon" title="切換深淺色" aria-label="切換深淺色">◐</button>
+    <button id="btnFull" class="icon" title="整頁全螢幕" aria-label="整頁全螢幕">⛶</button>
+  </div>
+</header>
+<nav class="secnav" id="secnav" aria-label="頁面區塊">
+  <a href="#intro">說明</a><a href="#overview">總覽</a><a href="#actions">操作</a><a href="#kcard">K 線</a>
+  <a href="#eqcard">資金</a><a href="#risk">風險</a><a href="#returns">報酬</a><a href="#trades">交易</a><a href="#records">紀錄</a>
+</nav>
+
+<main>
+  <div id="modeBanner" class="banner" hidden></div>
+  <div id="staticBanner" class="banner info" hidden>公開展示版：資料每 4 小時（台灣時間 0、4、8、12、16、20 點後）自動從 OKX 更新並重算。這是紙上交易的模擬紀錄，不是投資建議。</div>
+
+  <details class="card intro" id="intro" open>
+    <summary><h2>策略說明</h2><span class="sub">兩個策略分開記帳 · 點標題可收合</span></summary>
+    <div class="intro-grid">
+      <div class="strat s1">
+        <h3><i class="k" style="background:var(--s1)"></i>S1：4H 通道突破（只做多，現貨）</h3>
+        <ul>
+          <li><b>進場</b>：4H 收盤突破前 N 根最高價，下一根開盤市價買進。N20、N30 兩個子帳戶各半，同時觸發就一起買。</li>
+          <li><b>濾網</b>：日線收盤在 200 日均線上方（用前一天）；突破前的通道寬度在過去 180 天屬於較窄的一半（盤整後才突破）。</li>
+          <li><b>出場</b>：停損 = 進場價 − 3×ATR，之後每根收盤用「最高收盤 − 3×ATR」上調、只升不降；用 OKX 現貨的止損委託，觸發後市價賣出，沒有停利。</li>
+          <li><b>倉位</b>：買進金額 = 子帳戶淨值 × min(1, 40% ÷ 過去 30 天年化波動)，進場時決定，不加槓桿。成本假設每邊 0.12%（手續費 0.10%＋滑價 0.02%）。</li>
+          <li><b>特性</b>：約 85% 時間空手，每年 10–15 筆、持有 3–4 天；回撤小，但多頭只吃到一部分漲幅。</li>
+        </ul>
+        <div class="intro-stat" id="introS1"></div>
+      </div>
+      <div class="strat d">
+        <h3><i class="k" style="background:var(--d)"></i>D：日線趨勢＋動能（只做多，現貨）</h3>
+        <ul>
+          <li><b>方向分數</b>：趨勢（收盤 &gt; 200 日均線、50 日 &gt; 200 日均線、收盤 &gt; 140 日均線）與動能（30／90／180 日報酬 &gt; 0）各佔一半。</li>
+          <li><b>目標比例</b>：分數 × min(1, 40% ÷ 30 日年化波動)，在 0%–100% 之間。</li>
+          <li><b>調倉</b>：每天台灣 08:00 用前一日收盤計算；和上次指令相差 ≥ 20%（或目標為 0%／100%）才調整，兩次之間持有固定 BTC 數量。</li>
+          <li><b>特性</b>：中長期趨勢配置，每年約 14 次；多頭持有較多 BTC、報酬較高，但回撤也比 S1 深。</li>
+        </ul>
+        <div class="intro-stat" id="introD"></div>
+      </div>
+    </div>
+    <div class="sub intro-foot">手動操作至少要在台灣時間 08–24 點每 4 小時看一次（一天只看一兩次，研究顯示結果明顯變差）。本頁是研究與紀錄工具，不是投資建議；下單前請自行確認價格與數量。</div>
+  </details>
+
+  <section class="hero" id="overview">
+    <div class="card hero-main">
+      <div class="hero-label" id="heroLabel">紙上帳戶淨值</div>
+      <div class="hero-value"><span id="heroEq">—</span><small>USDT</small></div>
+      <div class="hero-delta" id="heroDelta"></div>
+      <div class="hero-spark-wrap">
+        <div class="hero-spark-label" id="heroSparkLabel">回測：同樣配置自 2021 起</div>
+        <div id="heroSpark" class="spark"></div>
+      </div>
+    </div>
+    <div class="hero-tiles" id="heroTiles"></div>
+  </section>
+
+  <div class="ops-row">
+  <section class="card" id="actions">
+    <div class="card-head"><h2>下一步操作</h2><span class="sub" id="promptSub"></span></div>
+    <div id="prompts" class="prompts"></div>
+  </section>
+
+  <section id="kpis" class="kpis"></section>
+  </div>
+
+  <section class="card fs-one" id="kcard">
+    <div class="card-head">
+      <h2>BTC-USDT 現貨 K 線</h2>
+      <div class="seg" id="tfSeg"><button data-tf="4h" class="on">4H</button><button data-tf="1d">1D</button></div>
+      <div class="seg" id="rangeSeg">
+        <button data-r="7">1 週</button><button data-r="30">1 月</button><button data-r="90" class="on">3 月</button>
+        <button data-r="365">1 年</button><button data-r="0">全部</button>
+      </div>
+      <span class="spacer"></span>
+      <button class="icon fs" data-fs title="全螢幕" aria-label="K 線全螢幕">⛶</button>
+    </div>
+    <div class="toggles">
+      <label><input type="checkbox" id="shN20" checked><i style="background:var(--s1)"></i>S1-N20</label>
+      <label><input type="checkbox" id="shN30" checked><i style="background:var(--s1b)"></i>S1-N30</label>
+      <label><input type="checkbox" id="shD" checked><i style="background:var(--d)"></i>D 調倉</label>
+      <label><input type="checkbox" id="shStop" checked>停損線</label>
+      <label><input type="checkbox" id="shCh">通道上緣</label>
+      <label><input type="checkbox" id="shMA" checked>200 日均線</label>
+    </div>
+    <div class="chart-wrap">
+      <div id="kchart" class="chart tall"></div>
+      <div id="klegend" class="legend-ov"></div>
+    </div>
+    <div class="keys" id="kkeys"></div>
+    <div class="sub foot">時間為台灣時間。▲ 進場、▼ 出場（標註帳戶損益）；D 綠色 ▲ 加倉／▼ 減倉（標註調整後的 BTC 比例）；「紙」= 紙上交易期間。點下方交易紀錄可跳到該筆。</div>
+  </section>
+
+  <section class="card fs-one" id="eqcard">
+    <div class="card-head">
+      <h2>資金曲線</h2><span class="sub">USDT</span>
+      <div class="seg" id="eqSeg"><button data-e="backtest" class="on">回測</button><button data-e="paper">紙上／實盤</button></div>
+      <label class="check"><input type="checkbox" id="eqLog">對數刻度</label>
+      <span class="spacer"></span>
+      <button class="icon fs" data-fs title="全螢幕" aria-label="資金曲線全螢幕">⛶</button>
+    </div>
+    <div class="chart-wrap"><div id="eqchart" class="chart eq"></div><div id="eqlegend" class="legend-ov"></div></div>
+    <div class="keys" id="eqkeys"></div>
+  </section>
+
+  <section class="grid2" id="risk">
+    <div class="card fs-one">
+      <div class="card-head">
+        <h2>回撤</h2><span class="sub">各策略從自己的高點算</span>
+        <label class="check"><input type="checkbox" id="ddBtc">含 BTC 持有</label>
+        <span class="spacer"></span>
+        <button class="icon fs" data-fs title="全螢幕" aria-label="回撤全螢幕">⛶</button>
+      </div>
+      <div class="chart-wrap"><div id="ddchart" class="chart mid"></div><div id="ddlegend" class="legend-ov"></div></div>
+      <div class="keys" id="ddkeys"></div>
+    </div>
+    <div class="card fs-one">
+      <div class="card-head">
+        <h2>曝險</h2><span class="sub">S1 買進金額＋D 持有的 BTC，佔總資金</span>
+        <span class="spacer"></span>
+        <button class="icon fs" data-fs title="全螢幕" aria-label="曝險全螢幕">⛶</button>
+      </div>
+      <div class="chart-wrap"><div id="expchart" class="chart mid"></div><div id="explegend" class="legend-ov"></div></div>
+      <div class="keys" id="expkeys"></div>
+    </div>
+  </section>
+
+  <section class="grid2" id="returns">
+    <div class="card fs-one">
+      <div class="card-head">
+        <h2>逐年報酬</h2><span class="sub">回測，各自以子帳戶計</span>
+        <span class="spacer"></span>
+        <button class="icon fs" data-fs title="全螢幕" aria-label="逐年報酬全螢幕">⛶</button>
+      </div>
+      <div id="yearly" class="bars"></div>
+      <div class="keys" id="ykeys"></div>
+    </div>
+    <div class="card fs-one">
+      <div class="card-head">
+        <h2>每月報酬</h2><span class="sub">組合</span>
+        <span class="spacer"></span>
+        <button class="icon fs" data-fs title="全螢幕" aria-label="每月報酬全螢幕">⛶</button>
+      </div>
+      <div id="heat"></div>
+      <div class="sub foot">藍 = 賺、紅 = 賠，顏色越深幅度越大（±15% 封頂）。</div>
+    </div>
+  </section>
+
+  <section class="card fs-one">
+    <div class="card-head">
+      <h2>S1 逐筆損益</h2><span class="sub">帳戶報酬 %，已含倉位與成本；依出場時間排列，點長條可跳到 K 線</span>
+      <span class="spacer"></span>
+      <button class="icon fs" data-fs title="全螢幕" aria-label="逐筆損益全螢幕">⛶</button>
+    </div>
+    <div id="pnl" class="bars"></div>
+  </section>
+
+  <section class="card">
+    <div class="card-head"><h2>績效摘要</h2></div>
+    <div class="table-wrap" style="max-height:none"><table id="statsTable"></table></div>
+    <div class="sub foot">Sharpe 以日報酬、√365 年化。回測自設定的回測起點以同樣資金起算；組合為兩個子帳戶直接相加，不再平衡。</div>
+  </section>
+
+  <section class="card fs-one" id="trades">
+    <div class="card-head">
+      <h2>交易紀錄</h2>
+      <div class="seg" id="tradeTab"><button data-t="s1" class="on">S1 交易</button><button data-t="d">D 調倉</button></div>
+      <select id="fStrat"><option value="">全部策略</option><option>S1-N20</option><option>S1-N30</option></select>
+      <select id="fPhase"><option value="">回測＋紙上</option><option value="backtest">只看回測</option><option value="paper">只看紙上</option></select>
+      <span class="sub" id="tradeCount"></span>
+      <span class="spacer"></span>
+      <button class="icon fs" data-fs title="全螢幕" aria-label="交易紀錄全螢幕">⛶</button>
+    </div>
+    <div class="table-wrap"><table id="tradeTable"></table></div>
+  </section>
+
+  <section class="grid2" id="records">
+    <div class="card">
+      <div class="card-head"><h2>操作提示紀錄</h2><span class="sub">每次發出的操作指令，供事後對照</span></div>
+      <div class="table-wrap" style="max-height:320px"><table id="logTable"></table></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><h2>實際成交</h2><span class="sub">你手動輸入；自動對照模型價格算滑價</span></div>
+      <div class="table-wrap" style="max-height:320px"><table id="fillTable"></table></div>
+    </div>
+  </section>
+</main>
+
+<dialog id="dlgSettings">
+  <h2>設定</h2>
+  <div class="form">
+    <label for="sMode">模式</label>
+    <select id="sMode"><option value="paper">紙上交易</option><option value="live">正式資金（手動下單）</option></select>
+    <label for="sCap">起始資金 USDT</label><input id="sCap" type="number" min="1" step="1">
+    <label for="sStart">起算日</label><input id="sStart" type="date">
+    <label for="sW">S1 佔比</label><input id="sW" type="number" min="0" max="1" step="0.05">
+    <label for="sRed">K 線顏色</label>
+    <select id="sRed"><option value="0">綠漲紅跌</option><option value="1">紅漲綠跌</option></select>
+    <div class="full hint">切到正式資金時，建議把起算日設為實際開始下單的那天、起始資金設為策略帳戶的實際金額；之後提示的買賣數量會照這個資金計算。</div>
+  </div>
+  <div class="err" id="sErr"></div>
+  <div class="dlg-actions"><button id="sCancel">取消</button><button id="sSave" class="primary">儲存並重算</button></div>
+</dialog>
+
+<dialog id="dlgFill">
+  <h2>記錄實際成交</h2>
+  <div class="form">
+    <label for="fS">策略</label><select id="fS"><option>S1-N20</option><option>S1-N30</option><option>D</option></select>
+    <label for="fSide">方向</label><select id="fSide"><option value="buy">買進</option><option value="sell">賣出</option></select>
+    <label for="fTime">成交時間</label><input id="fTime" type="datetime-local">
+    <label for="fPx">成交均價</label><input id="fPx" type="number" step="0.1">
+    <label for="fBtc">BTC 數量</label><input id="fBtc" type="number" step="0.00001">
+    <label for="fFee">手續費 USDT</label><input id="fFee" type="number" step="0.01">
+    <label for="fNote">備註</label><input id="fNote" type="text" maxlength="200">
+    <div class="full hint">時間用台灣時間。網站會找同策略、同方向、8 小時內的模型成交價，計算你的滑價。</div>
+  </div>
+  <div class="err" id="fErr"></div>
+  <div class="dlg-actions"><button id="fCancel">取消</button><button id="fSave" class="primary">儲存</button></div>
+</dialog>
+
+<div id="tip" class="tip"></div>
+<script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

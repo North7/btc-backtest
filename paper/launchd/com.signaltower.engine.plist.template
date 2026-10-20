@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.signaltower.engine</string>
+  <key>ProgramArguments</key>
+  <array><string>__ROOT__/.venv/bin/python</string><string>__ROOT__/paper/engine.py</string></array>
+  <key>WorkingDirectory</key><string>__ROOT__</string>
+  <!-- 台灣時間每 4 小時（4H K 線收盤）後 2 分鐘執行；電腦睡眠時錯過的會在醒來後補跑一次 -->
+  <key>StartCalendarInterval</key>
+  <array>
+    <dict><key>Hour</key><integer>0</integer><key>Minute</key><integer>2</integer></dict>
+    <dict><key>Hour</key><integer>4</integer><key>Minute</key><integer>2</integer></dict>
+    <dict><key>Hour</key><integer>8</integer><key>Minute</key><integer>2</integer></dict>
+    <dict><key>Hour</key><integer>12</integer><key>Minute</key><integer>2</integer></dict>
+    <dict><key>Hour</key><integer>16</integer><key>Minute</key><integer>2</integer></dict>
+    <dict><key>Hour</key><integer>20</integer><key>Minute</key><integer>2</integer></dict>
+  </array>
+  <key>StandardOutPath</key><string>__ROOT__/paper/state/engine.log</string>
+  <key>StandardErrorPath</key><string>__ROOT__/paper/state/engine.log</string>
+</dict>
+</plist>

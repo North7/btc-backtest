@@ -1,0 +1,52 @@
+# Signal Tower 公開展示版：每根 4H K 線收盤後從 OKX 抓資料、重跑引擎，發布到 GitHub Pages。
+# GitHub 的定時排程不保證準時（常晚 5–30 分鐘，尖峰時更久），實盤請以本機版（paper/launchd）為準。
+name: 更新並發布 Signal Tower
+
+on:
+  schedule:
+    - cron: "7 0,4,8,12,16,20 * * *"   # UTC；4H K 線收盤後 7 分鐘（台灣時間 08、12、16、20、00、04 點過 7 分）
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ["paper/**", "backtest.py", ".github/workflows/pages.yml"]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: 安裝套件
+        run: pip install pandas==3.0.6 numpy==2.5.4
+      - name: 還原 K 線快取（只需補抓最新幾根）
+        uses: actions/cache@v4
+        with:
+          path: paper/data
+          key: okx-btc-4h-${{ github.run_id }}
+          restore-keys: okx-btc-4h-
+      - name: 抓資料並重算
+        run: python paper/engine.py --no-notify
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: paper/web
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4

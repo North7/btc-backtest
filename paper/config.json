@@ -1,0 +1,12 @@
+{
+  "mode": "paper",
+  "capital_usdt": 20000,
+  "start": "2026-10-20",
+  "weights": {
+    "S1": 0.5,
+    "D": 0.5
+  },
+  "backtest_from": "2021-01-01",
+  "notify": true,
+  "red_up": false
+}

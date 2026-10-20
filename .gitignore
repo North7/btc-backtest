@@ -1,0 +1,19 @@
+# Python 環境與快取
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+
+# 原始資料（用 fetch_data.py、fetch_okx.py 重新下載）
+data/
+paper/data/
+
+# 執行後產生的輸出
+equity_curves.csv
+paper/web/data.js
+
+# 個人交易紀錄（操作提示、實際成交、排程紀錄）
+paper/state/
+
+# 本機開發設定
+.claude/

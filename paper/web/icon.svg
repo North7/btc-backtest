@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#3987e5"/>
+      <stop offset="1" stop-color="#1baf7a"/>
+    </linearGradient>
+    <linearGradient id="sheen" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity=".22"/>
+      <stop offset=".55" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="16" fill="url(#bg)"/>
+  <rect width="64" height="64" rx="16" fill="url(#sheen)"/>
+  <!-- 突破門檻（虛線） -->
+  <path d="M12 30H52" stroke="#fff" stroke-width="2.4" stroke-dasharray="3 4" stroke-opacity=".55" stroke-linecap="round"/>
+  <!-- 價格在門檻下盤整後向上突破，並發出訊號 -->
+  <g fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 42L20 37L26 40L33 35L38 38L46 20" stroke-width="4.6"/>
+    <path d="M47.39 12.12A8 8 0 0 1 53.88 21.39" stroke-width="3.4" stroke-opacity=".7"/>
+  </g>
+  <circle cx="46" cy="20" r="3.8" fill="#fff"/>
+</svg>
