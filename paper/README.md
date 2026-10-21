@@ -15,9 +15,11 @@ cd ~/Documents/btc-backtest && .venv/bin/python paper/server.py
 沒開伺服器時，直接雙擊 `paper/web/index.html` 也能看，但不能記錄成交、改設定或立即更新。
 
 ## 公開展示版（GitHub Pages）
-`.github/workflows/pages.yml` 在 GitHub Actions 上每 15 分鐘從 OKX 抓資料、重跑引擎，有新的 4H K 線才把 `paper/web` 發布到 GitHub Pages（GitHub 的定時排程常延遲、偶爾整次跳過，頻繁嘗試可以補上）。
+公開網站由 `.github/workflows/pages.yml` 在 GitHub Actions 上從 OKX 抓資料、重跑引擎後發布 `paper/web`。觸發方式有兩種：
+- **主要**：本機排程每次跑完、發現新 K 線時，用 `gh workflow run` 直接觸發（`config.json` 的 `publish_repo`），GitHub 會立刻執行，收盤後約 5 分鐘更新
+- **備援**：GitHub 自己的定時排程（每 15 分鐘嘗試）。實測這個排程常被延遲或丟棄（設每 15 分鐘，曾 7 小時只跑 1 次），只在電腦關機時派上用場
 - 沒有本機伺服器時，網頁自動切成唯讀展示版：隱藏立即更新、記錄成交、設定與提示紀錄
-- 通常在收盤後 15–45 分鐘更新，GitHub 排程不穩時可能更久；兩根 K 線之間不會重新發布，所以網頁上的「現價」最多落後 4 小時；實盤下單請以本機版為準
+- 電腦開著時收盤後約 5 分鐘更新；電腦關機時只靠 GitHub 排程，可能落後數小時。兩根 K 線之間不會重新發布，所以網頁上的「現價」最多落後 4 小時；實盤下單請以本機版為準
 - 公開 repo 若 60 天沒有任何提交，GitHub 會自動停用定時排程，需要到 Actions 頁面重新啟用
 
 ## 自動更新與通知
