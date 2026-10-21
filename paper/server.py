@@ -4,7 +4,7 @@
 - POST /api/fill    記錄實際成交 → state/fills.csv，並重算
 - POST /api/config  切換模式（paper / live）、資金、起始日、權重
 - POST /api/refresh 立刻從 OKX 抓最新資料並重算
-用法：.venv/bin/python paper/server.py  → 開 http://127.0.0.1:8765
+用法：.venv/bin/python paper/server.py [--port 8787]  → 開 http://127.0.0.1:8787
 """
 import csv, json, subprocess, sys, datetime as dt, threading
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parent
 WEB, STATE, CFG = ROOT / "web", ROOT / "state", ROOT / "config.json"
 FILL_PATH = STATE / "fills.csv"
 FILL_COLS = ["recorded_at", "strat", "side", "time", "price", "contracts", "btc", "fee_usdt", "note"]
-PORT = 8765
+PORT = int(sys.argv[sys.argv.index("--port") + 1]) if "--port" in sys.argv else 8787   # 避開其他專案常用的 8765
 LOCK = threading.Lock()
 
 def run_engine(online):

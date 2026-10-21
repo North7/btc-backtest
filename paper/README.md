@@ -11,7 +11,7 @@ K 線上的回測與紙上交易進出場、停損線、D 的調倉、資金曲�
 ```bash
 cd ~/Documents/btc-backtest && .venv/bin/python paper/server.py
 ```
-然後在瀏覽器開 http://127.0.0.1:8765 。
+然後在瀏覽器開 http://127.0.0.1:8787 。
 沒開伺服器時，直接雙擊 `paper/web/index.html` 也能看，但不能記錄成交、改設定或立即更新。
 
 ## 公開展示版（GitHub Pages）
