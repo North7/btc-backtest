@@ -1,10 +1,11 @@
-# Signal Tower 公開展示版：每根 4H K 線收盤後從 OKX 抓資料、重跑引擎，發布到 GitHub Pages。
-# GitHub 的定時排程不保證準時（常晚 5–30 分鐘，尖峰時更久），實盤請以本機版（paper/launchd）為準。
+# Signal Tower 公開展示版：從 OKX 抓資料、重跑引擎，有新的 4H K 線才發布到 GitHub Pages。
+# GitHub 的定時排程常延遲、偶爾整次跳過（新 repo 尤其明顯），所以每 15 分鐘嘗試一次；
+# 沒有新 K 線就不發布。實盤請以本機版（paper/launchd）為準。
 name: 更新並發布 Signal Tower
 
 on:
   schedule:
-    - cron: "7 0,4,8,12,16,20 * * *"   # UTC；4H K 線收盤後 7 分鐘（台灣時間 08、12、16、20、00、04 點過 7 分）
+    - cron: "*/15 * * * *"
   workflow_dispatch:
   push:
     branches: [main]
@@ -22,6 +23,8 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.check.outputs.changed }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -37,12 +40,28 @@ jobs:
           restore-keys: okx-btc-4h-
       - name: 抓資料並重算
         run: python paper/engine.py --no-notify
+      - name: 和線上版本比對，有新 K 線才發布
+        id: check
+        env:
+          LIVE: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/data.js
+        run: |
+          bar() { python -c "import sys,json; print(json.loads(sys.stdin.read().split('=',1)[1].rstrip().rstrip(';'))['meta']['last_bar'])"; }
+          new=$(bar < paper/web/data.js)
+          old=$(curl -fsS "$LIVE" | bar || echo none)
+          echo "線上最後 K 線 $old，這次算出 $new"
+          if [ "$new" != "$old" ] || [ "${{ github.event_name }}" != "schedule" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
       - uses: actions/upload-pages-artifact@v3
+        if: steps.check.outputs.changed == 'true'
         with:
           path: paper/web
 
   deploy:
     needs: build
+    if: needs.build.outputs.changed == 'true'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
