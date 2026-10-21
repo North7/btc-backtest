@@ -256,6 +256,21 @@ def trade_stats(tr):
             "hold_days": float(np.median([t["hold_h"] for t in tr]) / 24)}
 
 # ---------------------------------------------------------------- 主流程
+def push_phone(topic, rows, site, live):
+    """用 ntfy 推播到手機（https://ntfy.sh，手機裝 ntfy App 訂閱同一個頻道名稱）。
+    頻道名稱放在環境變數 NTFY_TOPIC（GitHub secret），不寫進公開的程式碼。"""
+    sent = 0
+    for r in rows:
+        body = json.dumps({"topic": topic, "title": ("【實盤】" if live else "") + r["title"], "message": r["text"],
+                           "priority": 4, "tags": ["rotating_light"], "click": site}, ensure_ascii=False).encode()
+        try:
+            urllib.request.urlopen(urllib.request.Request("https://ntfy.sh/", data=body,
+                                                          headers={"Content-Type": "application/json", **UA}), timeout=20)
+            sent += 1
+        except Exception as e:
+            print(f"  手機推播失敗：{e}")
+    return sent
+
 def trigger_publish(repo):
     """有新 K 線時請 GitHub 立刻重建公開網站。手動觸發（workflow_dispatch）會馬上執行，
     不像 GitHub 的定時排程常被延遲或丟棄。背景執行時 PATH 很短，所以自己找 gh。"""
@@ -451,6 +466,15 @@ def main(offline=False, notify=True):
                 msg = r["text"].replace('"', "'")[:180]; ttl = r["title"].replace('"', "'")
                 subprocess.run(["osascript", "-e", f'display notification "{msg}" with title "Signal Tower" subtitle "{ttl}" sound name "Glass"'],
                                check=False)
+
+    # 手機推播：只在這次抓到新 K 線時送（雲端執行不保留提示紀錄，用這個條件避免同一根 K 線重複推播）
+    topic = __import__("os").environ.get("NTFY_TOPIC")
+    if topic and upd["candles"] > 0:
+        actions = [p for p in prompts if p["level"] == "action"]
+        if actions:
+            owner, repo = (cfg.get("publish_repo") or "/").split("/")
+            site = f"https://{owner.lower()}.github.io/{repo}/" if owner else ""
+            print(f"  手機推播 {push_phone(topic, actions, site, cfg['mode'] == 'live')} 則")
 
     # ---- 實際成交紀錄（網頁輸入）與模型對照
     fills = []

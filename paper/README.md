@@ -15,9 +15,14 @@ cd ~/Documents/btc-backtest && .venv/bin/python paper/server.py
 沒開伺服器時，直接雙擊 `paper/web/index.html` 也能看，但不能記錄成交、改設定或立即更新。
 
 ## 公開展示版（GitHub Pages）
-公開網站由 `.github/workflows/pages.yml` 在 GitHub Actions 上從 OKX 抓資料、重跑引擎後發布 `paper/web`。觸發方式有兩種：
-- **主要**：本機排程每次跑完、發現新 K 線時，用 `gh workflow run` 直接觸發（`config.json` 的 `publish_repo`），GitHub 會立刻執行，收盤後約 5 分鐘更新
-- **備援**：GitHub 自己的定時排程（每 15 分鐘嘗試）。實測這個排程常被延遲或丟棄（設每 15 分鐘，曾 7 小時只跑 1 次），只在電腦關機時派上用場
+公開網站由 `.github/workflows/pages.yml` 在 GitHub Actions 上從 OKX 抓資料、重跑引擎後發布 `paper/web`，完全不需要本機電腦。觸發方式：
+- **主要：外部排程 cron-job.org**，台灣時間 0/4/8/12/16/20 點過 2 分呼叫 GitHub API（`POST /repos/North7/btc-backtest/actions/workflows/pages.yml/dispatches`，內容 `{"ref":"main"}`），用一組只有這個 repo「Actions 讀寫」權限的 fine-grained 權杖。GitHub 收到手動觸發會立刻執行
+- **備援：GitHub 內建排程**（每 15 分鐘嘗試）。實測常被延遲或丟棄（設每 15 分鐘，曾 7 小時只跑 1 次）
+- **選用：本機排程**跑完時也會觸發（`config.json` 的 `publish_repo`）
+- 同一根 K 線被觸發多次也沒關係：沒有新 K 線就不發布、不推播
+
+**手機推播**：雲端執行抓到新 K 線、且有要操作的指令時，透過 [ntfy](https://ntfy.sh) 推播。頻道名稱存在 GitHub secret `NTFY_TOPIC`（不在程式碼裡）；手機裝 ntfy App，訂閱同一個頻道名稱即可。
+
 - 沒有本機伺服器時，網頁自動切成唯讀展示版：隱藏立即更新、記錄成交、設定與提示紀錄
 - 電腦開著時收盤後約 5 分鐘更新；電腦關機時只靠 GitHub 排程，可能落後數小時。兩根 K 線之間不會重新發布，所以網頁上的「現價」最多落後 4 小時；實盤下單請以本機版為準
 - 公開 repo 若 60 天沒有任何提交，GitHub 會自動停用定時排程，需要到 Actions 頁面重新啟用

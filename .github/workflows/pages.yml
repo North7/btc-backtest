@@ -1,6 +1,6 @@
 # Signal Tower 公開展示版：從 OKX 抓資料、重跑引擎，有新的 4H K 線才發布到 GitHub Pages。
-# GitHub 的定時排程常延遲、偶爾整次跳過（新 repo 尤其明顯），所以每 15 分鐘嘗試一次；
-# 沒有新 K 線就不發布。實盤請以本機版（paper/launchd）為準。
+# 準時觸發靠外部排程（cron-job.org 呼叫 workflow_dispatch，每根 4H 收盤後 2 分鐘）；
+# GitHub 內建排程常延遲、整次跳過，只留作備援（每 15 分鐘嘗試，沒有新 K 線就不發布）。
 name: 更新並發布 Signal Tower
 
 on:
@@ -38,7 +38,9 @@ jobs:
           path: paper/data
           key: okx-btc-4h-${{ github.run_id }}
           restore-keys: okx-btc-4h-
-      - name: 抓資料並重算
+      - name: 抓資料並重算（有新 K 線且有要操作的指令時推播到手機）
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
         run: python paper/engine.py --no-notify
       - name: 和線上版本比對，有新 K 線才發布
         id: check
