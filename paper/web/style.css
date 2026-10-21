@@ -320,3 +320,4 @@ main [id], main details[id] { scroll-margin-top: calc(var(--hdr, 64px) + 56px); 
 body.static #btnRefresh, body.static #btnFill, body.static #btnSettings,
 body.static .prompt .row, body.static #records, body.static #secnav a[href="#records"] { display: none; }
 .banner.info { background: color-mix(in srgb, var(--s1) 10%, var(--surface)); border-color: color-mix(in srgb, var(--s1) 30%, transparent); }
+.hint-line { font-size: 12px; color: var(--muted); }

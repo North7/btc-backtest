@@ -256,6 +256,20 @@ def trade_stats(tr):
             "hold_days": float(np.median([t["hold_h"] for t in tr]) / 24)}
 
 # ---------------------------------------------------------------- 主流程
+def trigger_publish(repo):
+    """有新 K 線時請 GitHub 立刻重建公開網站。手動觸發（workflow_dispatch）會馬上執行，
+    不像 GitHub 的定時排程常被延遲或丟棄。背景執行時 PATH 很短，所以自己找 gh。"""
+    import shutil
+    gh = shutil.which("gh") or next((p for p in [Path.home() / ".local/bin/gh", Path("/opt/homebrew/bin/gh"),
+                                                  Path("/usr/local/bin/gh")] if p.exists()), None)
+    if not gh:
+        return "找不到 gh，略過觸發公開網站更新"
+    try:
+        p = subprocess.run([str(gh), "workflow", "run", "pages.yml", "-R", repo], capture_output=True, text=True, timeout=60)
+        return "已觸發公開網站更新" if p.returncode == 0 else f"觸發公開網站更新失敗：{(p.stderr or p.stdout).strip()[:200]}"
+    except Exception as e:
+        return f"觸發公開網站更新失敗：{e}"
+
 def main(offline=False, notify=True):
     cfg = json.loads((ROOT / "config.json").read_text())
     STATE.mkdir(exist_ok=True); WEB.mkdir(exist_ok=True)
@@ -397,7 +411,7 @@ def main(offline=False, notify=True):
             else:
                 prompts.append({"level": "watch", "strat": name, "key": None,
                                 "title": f"{name} 空手，等待突破 {nb['trigger']:,.1f}",
-                                "text": f"若 {tw(nb['bar_close'])} 收盤 > {nb['trigger']:,.1f}（距現價 {nb['trigger'] / price - 1:+.1%}），"
+                                "text": f"若 {tw(nb['bar_close'])} 收盤 > {nb['trigger']:,.1f}（距現價 {nb['trigger'] / price - 1:+.2%}），"
                                         f"下一根開盤買進約 {st['btc_est']:.5f} BTC（約 {st['notional_est']:,.0f} USDT）。"})
         status[name] = st
 
@@ -503,6 +517,9 @@ def main(offline=False, notify=True):
           f"新提示 {len(new_rows)} 筆" + (f"；更新錯誤：{upd['error']}" if "error" in upd else ""))
     for p in prompts:
         print(f"  [{p['level']}] {p['title']} — {p['text']}")
+    in_ci = __import__("os").environ.get("GITHUB_ACTIONS") == "true"      # 雲端版不能觸發自己，否則會無限循環
+    if cfg.get("publish_repo") and not offline and not in_ci and (upd["candles"] > 0 or "--publish" in sys.argv):
+        print("  " + trigger_publish(cfg["publish_repo"]))
     return out
 
 if __name__ == "__main__":

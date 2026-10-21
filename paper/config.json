@@ -8,5 +8,6 @@
   },
   "backtest_from": "2021-01-01",
   "notify": true,
-  "red_up": false
+  "red_up": false,
+  "publish_repo": "North7/btc-backtest"
 }

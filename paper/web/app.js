@@ -545,11 +545,17 @@ function renderPrompts() {
       el("div", { class: "text" }, p.text));
     const st = P.status[p.strat];
     if (p.level === "watch" && st && st.next) {
-      const gap = st.next.trigger / P.meta.price - 1;
-      const fill = Math.max(0.02, Math.min(1, 1 - gap / 0.08));          // 距離 8% 以上 = 幾乎空
+      const trig = st.next.trigger, price = P.meta.price, gap = trig / price - 1;
+      const above = price > trig;
+      const fill = above ? 1 : Math.max(0.02, Math.min(1, 1 - gap / 0.08));          // 距離 8% 以上 = 幾乎空
+      const gapTxt = above ? "盤中已超過" : `還差 ${num(trig - price, 0)} USDT（${(gap * 100).toFixed(2)}%）`;
       card.append(el("div", { class: "progress" },
         el("div", { class: "bar" }, el("i", { style: `width:${fill * 100}%;background:${C.strat[p.strat]}` })),
-        el("div", { class: "lbl" }, el("span", {}, `現價 ${num(P.meta.price, 0)}`), el("span", {}, `突破價 ${num(st.next.trigger, 0)}（還差 ${pct(gap)}）`))));
+        el("div", { class: "lbl" }, el("span", {}, `現價 ${num(price, 1)}`), el("span", {}, `突破價 ${num(trig, 1)}，${gapTxt}`))));
+      // 規則看的是 4H 收盤價，盤中碰到不算
+      card.append(el("div", { class: "hint-line" }, above
+        ? `盤中價格已超過突破價，但要等 ${tstr(st.next.bar_close).slice(5)} 這根 K 線收盤仍高於 ${num(trig, 1)} 才算突破。`
+        : `看的是 ${tstr(st.next.bar_close).slice(5)} 這根 4H K 線的收盤價，盤中碰到不算。`));
     }
     if (p.level === "action") {
       let due = null;
@@ -671,7 +677,9 @@ function renderHeader() {
   const age = (Date.now() / 1000 - (m.last_bar + H4)) / 3600;          // 距最後一根 K 線收盤幾小時
   const fresh = $("fresh"); fresh.replaceChildren();
   if (m.update && m.update.error) fresh.append(el("span", { class: "warn" }, "⚠ 上次抓資料失敗，顯示的是舊資料"));
-  else if (Date.now() / 1000 > m.next_close + (SERVER ? 15 : 90) * 60) fresh.append(el("span", { class: "warn" }, `⚠ 資料已 ${age.toFixed(1)} 小時沒更新，排程可能沒在跑`));
+  else if (Date.now() / 1000 > m.next_close + (SERVER ? 15 : 90) * 60) fresh.append(el("span", { class: "warn" }, SERVER
+    ? `⚠ 資料已 ${age.toFixed(1)} 小時沒更新，排程可能沒在跑`
+    : `⚠ 公開版資料已落後 ${age.toFixed(1)} 小時（GitHub 排程延遲），最新提示以本機版為準`));
   else fresh.append(`更新於 ${tstr(m.generated_at)}`);
   $("btnRefresh").disabled = !SERVER; $("btnFill").disabled = !SERVER; $("btnSettings").disabled = false;
   if (!SERVER) $("btnRefresh").title = "需要用本機伺服器開啟（paper/server.py）";
