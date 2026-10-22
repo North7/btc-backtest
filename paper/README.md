@@ -7,35 +7,32 @@ K 線上的回測與紙上交易進出場、停損線、D 的調倉、資金曲�
 - **D**：日線趨勢＋動能＋波動目標（現貨、20% 調倉門檻）
 - 預設 20,000 USDT，S1 與 D 各 10,000（S1 內 N20、N30 各 5,000），2026-10-20 起算（`config.json`）
 
-## 怎麼開
+## 現在的運作方式（全部在雲端，不需要本機電腦）
+網站：**https://north7.github.io/btc-backtest/**
+
+1. **cron-job.org** 在台灣時間 0/4/8/12/16/20 點過 2 分，呼叫 GitHub API 觸發排程
+   （`POST /repos/North7/btc-backtest/actions/workflows/pages.yml/dispatches`，內容 `{"ref":"main"}`，
+   用一組只有這個 repo「Actions 讀寫」權限的 fine-grained 權杖；權杖到期要重新產生並更新到 cron-job.org）
+2. **GitHub Actions**（`.github/workflows/pages.yml`）從 OKX 抓最新 K 線、重跑引擎，有新 K 線才發布到 GitHub Pages
+3. 有要操作的指令時，用 **[ntfy](https://ntfy.sh)** 推播到手機。頻道名稱存在 GitHub secret `NTFY_TOPIC`（不在程式碼裡），手機 ntfy App 訂閱同名頻道
+   - N20、N30 相同指令合併成一則；台灣時間 0–8 點的上調停損是靜音推播，進場、出場、D 調倉是高優先
+   - 同一根 K 線被觸發多次也沒關係：沒有新 K 線就不發布、不推播
+
+備援：GitHub 內建排程每 15 分鐘嘗試一次，但實測常被延遲或丟棄（曾 7 小時只跑 1 次），只在 cron-job.org 出問題時有用。
+
+注意：
+- 公開網站是唯讀展示版：沒有立即更新、記錄成交、設定與提示紀錄
+- 兩根 K 線之間不會重新發布，網頁上的「現價」最多落後 4 小時
+- 公開 repo 若 60 天沒有任何提交，GitHub 會停用內建排程（cron-job.org 觸發不受影響）
+
+## 本機版（選用）
+需要「記錄實際成交」「切換正式資金」這些要寫入資料的功能時才需要：
 ```bash
-cd ~/Documents/btc-backtest && .venv/bin/python paper/server.py
+cd ~/Documents/Claude\ Code/btc-backtest && .venv/bin/python paper/server.py
 ```
-然後在瀏覽器開 http://127.0.0.1:8787 。
-沒開伺服器時，直接雙擊 `paper/web/index.html` 也能看，但不能記錄成交、改設定或立即更新。
-
-## 公開展示版（GitHub Pages）
-公開網站由 `.github/workflows/pages.yml` 在 GitHub Actions 上從 OKX 抓資料、重跑引擎後發布 `paper/web`，完全不需要本機電腦。觸發方式：
-- **主要：外部排程 cron-job.org**，台灣時間 0/4/8/12/16/20 點過 2 分呼叫 GitHub API（`POST /repos/North7/btc-backtest/actions/workflows/pages.yml/dispatches`，內容 `{"ref":"main"}`），用一組只有這個 repo「Actions 讀寫」權限的 fine-grained 權杖。GitHub 收到手動觸發會立刻執行
-- **備援：GitHub 內建排程**（每 15 分鐘嘗試）。實測常被延遲或丟棄（設每 15 分鐘，曾 7 小時只跑 1 次）
-- **選用：本機排程**跑完時也會觸發（`config.json` 的 `publish_repo`）
-- 同一根 K 線被觸發多次也沒關係：沒有新 K 線就不發布、不推播
-
-**手機推播**：雲端執行抓到新 K 線、且有要操作的指令時，透過 [ntfy](https://ntfy.sh) 推播。頻道名稱存在 GitHub secret `NTFY_TOPIC`（不在程式碼裡）；手機裝 ntfy App，訂閱同一個頻道名稱即可。
-
-- 沒有本機伺服器時，網頁自動切成唯讀展示版：隱藏立即更新、記錄成交、設定與提示紀錄
-- 電腦開著時收盤後約 5 分鐘更新；電腦關機時只靠 GitHub 排程，可能落後數小時。兩根 K 線之間不會重新發布，所以網頁上的「現價」最多落後 4 小時；實盤下單請以本機版為準
-- 公開 repo 若 60 天沒有任何提交，GitHub 會自動停用定時排程，需要到 Actions 頁面重新啟用
-
-## 自動更新與通知
-```bash
-~/Documents/btc-backtest/paper/launchd/install.sh
-```
-- 台灣時間 00/04/08/12/16/20 點過 2 分自動更新；電腦睡眠時錯過的會在醒來後補跑
-- 有「要操作」的指令（進場、上調停損、停損出場、D 調倉）時，跳出 macOS 通知
-- 網站伺服器登入後常駐
-- 移除：`paper/launchd/uninstall.sh`；紀錄在 `paper/state/engine.log`
-- 如果紀錄出現 `Operation not permitted`，到「系統設定 → 隱私權與安全性 → 完全取用磁碟」加入 `.venv/bin/python`（macOS 限制背景程式讀寫「文件」資料夾）
+然後開 http://127.0.0.1:8787 。要讓它常駐並每 4 小時自動更新：`paper/launchd/install.sh`（移除：`uninstall.sh`）。
+2026-10-22 起已移除本機排程，全部改由雲端執行；本機版跑完也會觸發公開網站更新（`config.json` 的 `publish_repo`）。
+- 如果紀錄出現 `Operation not permitted`，到「系統設定 → 隱私權與安全性 → 完全取用磁碟」加入 `.venv/bin/python`
 
 ## 轉成正式資金
 網站右上「設定」→ 模式改成「正式資金」，起始資金填策略帳戶的實際金額，起算日填開始下單那天。
