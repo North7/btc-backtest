@@ -20,8 +20,10 @@
 - `fusion.py`：S1 與日線策略 D（strategy_daily.csv）的相關性、分資金組合、以 D 的方向分數當 S1 濾網
 - `supertrend.py`：4H Supertrend 當進場濾網、出場、或取代突破進場的對照
 - `deep_review.py`：現行實盤設定的參數穩健性、多幣種 S1（BTC/ETH/SOL/BNB/XRP）、多頭中買回檔策略、組合比較
+- `expectations.py`：用紙上交易引擎同一套規則算出預期行為範圍（連續虧損、水下時間、滾動報酬、抽樣回撤、成本敏感度），是 `RULES.md` 的數字依據
 - `paper/`：Signal Tower，紙上交易／手動實盤網站（S1＋D，K 線與交易標記、操作提示、資金與績效圖表），說明見 `paper/README.md`
 - `STRATEGY.md`：完整策略規格與驗證結果（給其他 AI／人交叉審查用）
+- `RULES.md`：紙上交易評估與實盤停用規則（2026-10-22 事先寫定）
 
 ## 執行
 ```
@@ -40,6 +42,7 @@ python regime.py 300
 python fusion.py ~/Downloads/strategy_daily.csv
 python fetch_data.py SOLUSDT && python fetch_data.py BNBUSDT && python fetch_data.py XRPUSDT
 python deep_review.py 300
+.venv/bin/python expectations.py 2000
 ```
 
 ## 回測假設
