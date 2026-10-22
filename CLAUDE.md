@@ -73,5 +73,6 @@
 ## 下一步候選
 1. ~~加入 OKX 的資金費率與 K 線資料，確認結果在實際交易所上成立~~ 已完成（成立）
 2. ~~S1 加入波動率收縮濾網（策略 5）做對照~~ 已完成；~~ETH 獨立驗證~~ 已完成（支持）
-3. ~~寫紙上交易腳本~~ 已完成：paper/（2026-10-20 起算，20,000 USDT，S1 與 D 各 10,000；S1 用 OKX 現貨、0.12%/邊、上限 1 倍；公開網站 https://north7.github.io/btc-backtest/，由 cron-job.org 每根 4H 收盤後 2 分鐘觸發 GitHub Actions 重算、發布並用 ntfy 推播手機；2026-10-22 起已移除本機排程，本機版 http://127.0.0.1:8787 改為選用；engine.py 啟動時自檢與 backtest.donchian 逐根一致）
+3. ~~寫紙上交易腳本~~ 已完成：paper/（2026-10-20 起算，20,000 USDT，S1 與 D 各 10,000；S1 用 OKX 現貨、0.12%/邊、上限 1 倍；公開網站 https://north7.github.io/btc-backtest/，由 cron-job.org 每根 4H 收盤後 2 分鐘觸發 GitHub Actions 重算、發布並用 ntfy 推播手機；2026-10-22 起已移除本機排程，本機版 http://127.0.0.1:8787 改為選用；engine.py 啟動時自檢與 backtest.donchian 逐根一致；
+   操作指令紀錄 signals_log.csv 存在私人 repo North7/btc-backtest-state，雲端每次執行取回、有新指令才推回，10/22 12:02 前來自本機、16:03 兩筆停損出場從 Actions 紀錄補回）
 4. 紙上交易 3 個月或 5 筆完整交易後，比對 signals_log 與重跑結果、評估滑價，再決定是否轉正式資金

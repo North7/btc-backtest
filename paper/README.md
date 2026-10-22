@@ -17,6 +17,11 @@ K 線上的回測與紙上交易進出場、停損線、D 的調倉、資金曲�
 3. 有要操作的指令時，用 **[ntfy](https://ntfy.sh)** 推播到手機。頻道名稱存在 GitHub secret `NTFY_TOPIC`（不在程式碼裡），手機 ntfy App 訂閱同名頻道
    - N20、N30 相同指令合併成一則；台灣時間 0–8 點的上調停損是靜音推播，進場、出場、D 調倉是高優先
    - 同一根 K 線被觸發多次也沒關係：沒有新 K 線就不發布、不推播
+4. 操作指令紀錄 `signals_log.csv` 存在**私人 repo** [North7/btc-backtest-state](https://github.com/North7/btc-backtest-state)（不放公開 repo）：
+   每次執行前取回到 `paper/state/`，有新指令才提交推回，每筆提交就是當時發出的指令，供事後和重跑結果對照
+   - 用部署金鑰存取（btc-backtest 的 secret `STATE_DEPLOY_KEY`，只有那個 repo 的寫入權限）
+   - 取回或推送失敗時網站照常發布，但那次執行會標成失敗（`log-check` 工作）
+   - 在本機查看：`gh repo clone North7/btc-backtest-state`，或直接到 GitHub 上看
 
 備援：GitHub 內建排程每 15 分鐘嘗試一次，但實測常被延遲或丟棄（曾 7 小時只跑 1 次），只在 cron-job.org 出問題時有用。
 
@@ -47,7 +52,7 @@ cd ~/Documents/Claude\ Code/btc-backtest && .venv/bin/python paper/server.py
 | `config.json` | 模式、資金、起算日、權重、K 線顏色 |
 | `web/` | 網頁（預設深色、可切淺色；每張圖右上 ⛶ 放大鋪滿視窗，支援的瀏覽器會同時進入系統全螢幕，Esc 離開；K 線圖用 TradingView lightweight-charts 4.2.0，從 unpkg 載入，需要網路） |
 | `data/` | OKX BTC-USDT 現貨 4H K 線（第一次從 `../data/okx_btc_4h.csv` 複製，之後每次補新的） |
-| `state/signals_log.csv` | 每次發出的操作指令（事後對照用） |
+| `state/signals_log.csv` | 每次發出的操作指令（事後對照用）；雲端版存在私人 repo btc-backtest-state，本機版寫在這裡，兩份各自獨立 |
 | `state/fills.csv` | 你輸入的實際成交 |
 
 ## 已知限制
