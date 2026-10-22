@@ -262,7 +262,8 @@ def push_phone(topic, rows, site, live):
     sent = 0
     for r in rows:
         body = json.dumps({"topic": topic, "title": ("【實盤】" if live else "") + r["title"], "message": r["text"],
-                           "priority": 4, "tags": ["rotating_light"], "click": site}, ensure_ascii=False).encode()
+                           "priority": r.get("priority", 4), "tags": [r.get("tag", "rotating_light")], "click": site},
+                          ensure_ascii=False).encode()
         try:
             urllib.request.urlopen(urllib.request.Request("https://ntfy.sh/", data=body,
                                                           headers={"Content-Type": "application/json", **UA}), timeout=20)
@@ -270,6 +271,30 @@ def push_phone(topic, rows, site, live):
         except Exception as e:
             print(f"  手機推播失敗：{e}")
     return sent
+
+def phone_rows(actions):
+    """手機推播的內容：N20、N30 同一根 K 線做同一件事時合併成一則；
+    台灣時間 0–8 點的上調停損改成靜音（交易所已掛著舊停損，晚幾小時調整影響很小）。"""
+    kind = lambda a: a["key"].split("|")[-1]
+    out, used = [], set()
+    for i, a in enumerate(actions):
+        if i in used:
+            continue
+        twin = next((j for j, b in enumerate(actions) if j > i and j not in used and a["strat"].startswith("S1-")
+                     and b["strat"].startswith("S1-") and kind(a) == kind(b) and a.get("stop") == b.get("stop")), None)
+        row = dict(a)
+        if twin is not None:
+            used.add(twin); b = actions[twin]
+            row["title"] = a["title"].replace(a["strat"] + " ", "S1（N20＋N30）")
+            q = (a.get("qty") or 0) + (b.get("qty") or 0)
+            row["text"] = "N20、N30 兩個子帳戶相同：" + a["text"] + (f" 兩者合計 {q:.5f} BTC。" if q else "")
+        hour_tw = (dt.datetime.now(dt.timezone.utc) + dt.timedelta(hours=8)).hour
+        if kind(a) == "stop":
+            row["priority"], row["tag"] = (2 if hour_tw < 8 else 3), "arrow_up"
+        else:
+            row["priority"], row["tag"] = 4, "rotating_light"
+        out.append(row)
+    return out
 
 def trigger_publish(repo):
     """有新 K 線時請 GitHub 立刻重建公開網站。手動觸發（workflow_dispatch）會馬上執行，
@@ -470,7 +495,7 @@ def main(offline=False, notify=True):
     # 手機推播：只在這次抓到新 K 線時送（雲端執行不保留提示紀錄，用這個條件避免同一根 K 線重複推播）
     topic = __import__("os").environ.get("NTFY_TOPIC")
     if topic and upd["candles"] > 0:
-        actions = [p for p in prompts if p["level"] == "action"]
+        actions = phone_rows([p for p in prompts if p["level"] == "action"])
         if actions:
             owner, repo = (cfg.get("publish_repo") or "/").split("/")
             site = f"https://{owner.lower()}.github.io/{repo}/" if owner else ""
