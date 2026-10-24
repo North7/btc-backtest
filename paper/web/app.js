@@ -44,7 +44,7 @@ function rgba(hex, a) {
 // ---------------------------------------------------------------- 顏色（隨深淺色切換）
 let C = {};
 function readColors() {
-  for (const k of ["s1", "s1b", "d", "total", "btc", "pos", "neg", "up", "down", "grid", "ink", "ink-2", "muted", "surface", "surface-3", "axis", "warning", "mid"])
+  for (const k of ["s1", "s1b", "d", "total", "btc", "pos", "neg", "up", "down", "grid", "ink", "ink-2", "muted", "surface", "surface-3", "axis", "warning", "mid", "on-strong"])
     C[k.replace("-", "_")] = cssv("--" + k);
   C.strat = { "S1-N20": C.s1, "S1-N30": C.s1b, D: C.d };
 }
@@ -407,7 +407,7 @@ function niceTicks(lo, hi, n) {
 }
 function heatColor(v) {
   const a = Math.min(1, Math.abs(v) / 0.15);
-  return { bg: v === 0 ? C.mid : rgba(v > 0 ? C.pos : C.neg, 0.12 + 0.78 * a), fg: a > 0.55 ? "#fff" : C.ink };
+  return { bg: v === 0 ? C.mid : rgba(v > 0 ? C.pos : C.neg, 0.12 + 0.78 * a), fg: a > 0.55 ? C.on_strong : C.ink };
 }
 function renderHeat() {
   const box = $("heat"); box.replaceChildren();
@@ -614,41 +614,96 @@ function countUp(node, to, fmt, ms = 700) {                 // 第一次顯示�
   requestAnimationFrame(step);
   setTimeout(() => { node.textContent = fmt(to); }, ms + 80);   // 保底：分頁在背景時動畫可能暫停
 }
+// 頁首大標：有要操作的指令就列出來，沒有就說明下一個檢查點
+const watching = (s) => { const x = P.status[s]; return x.state === "flat" && x.next && x.next.trend_ok && x.next.width_ok; };
+function renderStatus() {
+  const m = P.meta, st = P.status;
+  const g = new Date((m.generated_at + TZ) * 1000);
+  const day = Math.floor((m.generated_at - m.start) / DAY) + 1;
+  $("statusWhen").textContent = `${g.getUTCMonth() + 1} 月 ${g.getUTCDate()} 日 週${"日一二三四五六"[g.getUTCDay()]} · ${hhmm(m.generated_at)} 更新`
+    + (day >= 1 ? ` · ${m.mode === "live" ? "正式資金" : "紙上交易"}第 ${day} 天` : "");
+  const acts = P.prompts.filter((p) => p.level === "action");
+  $("status").classList.toggle("act", acts.length > 0);
+  if (acts.length) {
+    $("statusTitle").textContent = acts.length === 1 ? acts[0].title : `有 ${acts.length} 件事要處理`;
+    $("statusText").replaceChildren(...acts.map((p) => el("span", {}, acts.length > 1 ? `${p.title}：` : "", p.text)),
+      el("span", {}, el("a", { href: "#actions" }, "查看操作指令")));
+    return;
+  }
+  $("statusTitle").textContent = "一切照常，無需操作";
+  const parts = [`下一個檢查點是 ${tstr(m.next_close).slice(5)} 收盤`];
+  const w = STRATS.filter(watching), lg = STRATS.filter((s) => st[s].state === "long");
+  const trigs = [...new Set(w.map((s) => st[s].next.trigger))];
+  for (const t of trigs) {
+    const who = w.filter((s) => st[s].next.trigger === t).map((s) => s).join("、");
+    parts.push([`${who} 要收盤高於 `, el("span", { class: "hl" }, num(t, 1)), " 才會進場"]);
+  }
+  for (const s of lg) parts.push([`${s} 持倉中，停損 `, el("span", { class: "hl" }, num(st[s].stop, 1))]);
+  if (!w.length && !lg.length) parts.push("S1 濾網未通過，暫不進場");
+  parts.push(`D 維持 BTC ${pct(st.D.weight, 0, false)}`);
+  const kids = [];
+  parts.forEach((x, i) => kids.push(...[].concat(x), i < parts.length - 1 ? "；" : "。"));
+  $("statusText").replaceChildren(el("span", {}, ...kids));
+}
 function renderHero() {
   const m = P.meta, BS = P.stats.backtest, st = P.status;
   const a = accountNow();
-  $("heroLabel").textContent = m.mode === "live" ? "實盤帳戶淨值（模型）" : "紙上帳戶淨值";
-  countUp($("heroEq"), a.eq, (v) => num(v, 0));
+  $("heroLabel").textContent = m.mode === "live" ? "實盤帳戶淨值（模型）· USDT" : "紙上帳戶淨值 · USDT";
+  countUp($("heroEq"), a.eq, (v) => num(v, 2));
+  const pb = P.equity.paper && P.equity.paper.btc;
+  const btcChg = a.started && pb && pb.length ? pb[pb.length - 1][1] / pb[0][1] - 1 : null;
   $("heroDelta").replaceChildren(
-    el("span", {}, "起始 ", el("b", {}, num(m.capital, 0))),
-    el("span", {}, a.started ? "累計 " : "起算 ", el("b", { class: a.started ? cls(a.chg) : "" }, a.started ? pct(a.chg, 2) : tstr(m.start, false))),
+    a.started ? el("span", {}, el("b", { class: cls(a.chg) }, `${a.eq - m.capital >= 0 ? "+" : "-"}${num(Math.abs(a.eq - m.capital), 2)} · ${pct(a.chg, 2)}`))
+              : el("span", {}, "起算 ", el("b", {}, tstr(m.start, false))),
+    el("span", {}, `自 ${tstr(m.start, false).slice(5)} 起算 ${num(m.capital, 0)}`),
+    btcChg != null ? el("span", {}, "同期 BTC 持有 ", el("b", {}, pct(btcChg, 2))) : null,
     el("span", {}, "配置 ", el("b", {}, `S1 ${pct(m.weights.S1, 0, false)} · D ${pct(m.weights.D, 0, false)}`)));
-  const bt = P.equity.backtest.total;
-  $("heroSparkLabel").textContent = `回測：同樣配置自 ${tstr(m.backtest_from, false)} 起，${num(bt[0][1], 0)} → ${num(bt[bt.length - 1][1], 0)} USDT`;
-  charts.spark.s.setData(bt.map(([t, v]) => ({ time: L(t), value: v })));
+  // 走勢：紙上帳戶有兩個點以上就畫紙上，否則畫回測
+  const pt = P.equity.paper && P.equity.paper.total;
+  const usePaper = pt && pt.length >= 2;
+  const src = usePaper ? pt : P.equity.backtest.total;
+  $("heroSparkLabel").textContent = usePaper
+    ? `紙上帳戶 ${tstr(src[0][0], false).slice(5)} → ${tstr(src[src.length - 1][0] + H4).slice(5)}，每 4 小時一點`
+    : `回測：同樣配置自 ${tstr(m.backtest_from, false)} 起，${num(src[0][1], 0)} → ${num(src[src.length - 1][1], 0)} USDT`;
+  charts.spark.s.setData(src.map(([t, v]) => ({ time: L(t), value: v })));
   charts.spark.chart.timeScale().fitContent();
-  const tile = (key, name, color, alloc, stateText, meterVal, meterLabel) => {
-    const b = BS[key] || {};
-    return el("div", { class: "card tile", style: `--c:${color}` },
-      el("div", { class: "name" }, el("i", { style: `width:14px;height:3px;border-radius:2px;background:${color};display:inline-block` }), name, el("span", { class: "alloc" }, alloc)),
-      el("div", { class: "big" }, el("span", { "data-count": String(b.cagr ?? "") }, pct(b.cagr)), el("small", {}, "年化")),
-      el("div", { class: "row" }, el("span", {}, "Sharpe ", el("b", {}, b.sharpe == null ? "—" : b.sharpe.toFixed(2))),
-        el("span", {}, "最大回撤 ", el("b", {}, pct(b.maxdd, 1, false))), el("span", {}, "總報酬 ", el("b", {}, pct(b.total, 0)))),
-      el("div", { class: "meter", title: meterLabel }, el("i", { style: `width:${Math.max(0, Math.min(1, meterVal)) * 100}%` })),
-      el("div", { class: "state" }, stateText));
+  // 三個子帳戶：目前狀態一句話＋回測績效
+  const price = m.price;
+  const tile = (s) => {
+    const x = st[s], isD = s === "D";
+    const cap0 = isD ? m.capital * m.weights.D : m.capital * m.weights.S1 / STRATS.length;
+    const chg = x.equity / cap0 - 1;
+    let kind = "", pill = "空手", state;
+    if (isD) {
+      kind = "d"; pill = `持有 ${pct(x.weight, 0, false)}`;
+      const pend = P.d_orders.find((o) => o.pending);
+      state = [el("b", {}, num(x.btc, 5)), ` BTC，最新目標 ${pct(x.target, 0, false)}。`,
+        pend ? `${tstr(pend.exec_t).slice(5)} 調到 ${pctw(pend.weight_to)}。` : "相差未達 20%，不調倉；每天 08:00 判斷。"];
+    } else if (x.state === "long") {
+      kind = "on"; pill = "持倉中";
+      state = [`持有 `, el("b", {}, num(x.btc, 5)), ` BTC，未實現 ${pct(x.unreal, 2)}；停損 `, el("b", {}, num(x.stop, 1)), `（距現價 ${pct(x.stop / price - 1, 1)}）。`];
+    } else if (x.state === "pending") {
+      kind = "on"; pill = "下一根進場";
+      state = [`${tstr(P.meta.next_open).slice(5)} 開盤買進約 `, el("b", {}, num(x.btc, 5)), " BTC，成交後掛止損委託。"];
+    } else if (watching(s)) {
+      kind = "watch"; pill = "等待突破";
+      state = ["觸發價 ", el("b", {}, num(x.next.trigger, 1)), `，距現價 ${pct(x.next.trigger / price - 1, 2)}。${tstr(x.next.bar_close).slice(5)} 收盤高於它就在下一根進場。`];
+    } else {
+      const why = [];
+      if (!x.next.trend_ok) why.push("日線在 200 日均線下方");
+      if (!x.next.width_ok) why.push(`盤整寬度 ${x.next.width_rank.toFixed(2)}，需 ≤ 0.5`);
+      state = [`${why.join("、")}，下一根不會進場。`];
+    }
+    const b = BS[s] || {};
+    return el("div", { class: "card tile " + kind, style: `--c:${C.strat[s]}` },
+      el("div", { class: "name" }, el("i", { class: "dot" }), isD ? "D · 日線趨勢" : `S1 · ${SHORT[s]}`, el("span", { class: "pillstate" }, pill)),
+      el("div", { class: "big" }, num(x.equity, 2), el("small", { class: cls(chg) }, pct(chg, 2))),
+      el("div", { class: "state" }, ...state),
+      el("div", { class: "row" }, el("span", {}, "回測年化 ", el("b", {}, pct(b.cagr))),
+        el("span", {}, "Sharpe ", el("b", {}, b.sharpe == null ? "—" : b.sharpe.toFixed(2))),
+        el("span", {}, "最大回撤 ", el("b", {}, pct(b.maxdd, 1, false)))));
   };
-  requestAnimationFrame(() => { for (const x of document.querySelectorAll("#heroTiles [data-count]")) if (x.dataset.count !== "") countUp(x, +x.dataset.count, (v) => pct(v)); });
-  const s1Long = STRATS.filter((s) => st[s].state === "long").length;
-  const s1Expo = STRATS.reduce((acc, s) => acc + (st[s].state === "long" ? st[s].btc * m.price / (st[s].equity * 2) : 0), 0);
-  const { eq } = accountNow();
-  const totExpo = (STRATS.reduce((acc, s) => acc + (st[s].state === "long" ? st[s].btc * m.price : 0), 0) + st.D.weight * st.D.equity) / eq;
-  $("heroTiles").replaceChildren(
-    tile("total", "組合", C.total, `${num(m.capital, 0)} USDT`, el("span", {}, el("span", { class: "pillstate" }, "曝險"), `目前 BTC 曝險佔總資金 ${pct(totExpo, 0, false)}`), totExpo, "總曝險"),
-    tile("S1", "S1 突破", C.s1, `${num(m.capital * m.weights.S1, 0)} USDT`,
-      el("span", {}, el("span", { class: "pillstate" }, s1Long ? "持倉" : "空手"), s1Long ? `${s1Long} 個子帳戶持倉中` : "等待突破訊號"), s1Expo, "S1 部位佔 S1 資金"),
-    tile("D", "D 趨勢", C.d, `${num(m.capital * m.weights.D, 0)} USDT`,
-      el("span", {}, el("span", { class: "pillstate" }, "持有"), `BTC ${pct(st.D.weight, 0, false)}，目標 ${pct(st.D.target, 0, false)}`), st.D.weight, "D 持有 BTC 比例"),
-  );
+  $("heroTiles").replaceChildren(...STRATS.map(tile), tile("D"));
 }
 function initSpark() {
   const ch = LC.createChart($("heroSpark"), {
@@ -666,7 +721,7 @@ function initSpark() {
 function renderHeader() {
   const m = P.meta;
   $("price").textContent = num(m.price, 1);
-  $("lastBar").textContent = `${tstr(m.last_bar)}–${hhmm(m.last_bar + H4)}`;
+  $("lastBar").textContent = `${tstr(m.last_bar).slice(5)}–${hhmm(m.last_bar + H4)}`;
   const badge = $("modeBadge");
   badge.textContent = m.mode === "live" ? "正式資金" : "紙上交易"; badge.className = "badge" + (m.mode === "live" ? " live" : "");
   const ban = $("modeBanner");
@@ -680,7 +735,7 @@ function renderHeader() {
   else if (Date.now() / 1000 > m.next_close + (SERVER ? 15 : 90) * 60) fresh.append(el("span", { class: "warn" }, SERVER
     ? `⚠ 資料已 ${age.toFixed(1)} 小時沒更新，排程可能沒在跑`
     : `⚠ 公開版資料已落後 ${age.toFixed(1)} 小時（GitHub 排程延遲），最新提示以本機版為準`));
-  else fresh.append(`更新於 ${tstr(m.generated_at)}`);
+  fresh.hidden = !fresh.childElementCount;                              // 正常時更新時間已寫在頁首大標上方
   $("btnRefresh").disabled = !SERVER; $("btnFill").disabled = !SERVER; $("btnSettings").disabled = false;
   if (!SERVER) $("btnRefresh").title = "需要用本機伺服器開啟（paper/server.py）";
 }
@@ -858,7 +913,7 @@ function renderIntro() {
   $("introD").replaceChildren(item("配置", `${num(dcap, 0)} USDT`), ...perf(B.D || {}), item("目前", `持有 BTC ${pct(st.D.weight, 0, false)}`));
 }
 function renderAll(keep) {
-  renderHeader(); renderIntro(); renderHero(); renderPrompts(); renderKpis();
+  renderHeader(); renderStatus(); renderIntro(); renderHero(); renderPrompts(); renderKpis();
   updateK(keep); updateEq(); renderYearly(); renderHeat(); renderPnl(); renderStats(); renderTrades(); renderLog(); tick();
 }
 
@@ -874,6 +929,12 @@ function renderAll(keep) {
     for (const c of [charts.eq.chart, charts.dd.chart, charts.exp.chart]) c.timeScale().fitContent();
   }, 60));
   setInterval(tick, 1000);
+  // 沒有手動選過日夜時跟著系統切換
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", (e) => {
+    let saved = null; try { saved = localStorage.getItem("theme"); } catch (err) { /* 無痕模式 */ }
+    if (saved) return;
+    document.documentElement.dataset.theme = e.matches ? "dark" : "light"; applyTheme();
+  });
   // 沒有本機伺服器（例如 GitHub Pages）→ 唯讀展示版：隱藏需要伺服器的操作
   const setStatic = () => { document.body.classList.add("static"); $("staticBanner").hidden = false; renderHeader(); };
   fetch("api/ping").then((r) => (r.ok ? r.json() : null)).then((j) => { SERVER = !!(j && j.ok); if (SERVER) renderHeader(); else setStatic(); }).catch(setStatic);

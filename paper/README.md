@@ -26,7 +26,7 @@ K 線上的回測與紙上交易進出場、停損線、D 的調倉、資金曲�
 備援：GitHub 內建排程每 15 分鐘嘗試一次，但實測常被延遲或丟棄（曾 7 小時只跑 1 次），只在 cron-job.org 出問題時有用。
 
 注意：
-- 公開網站是唯讀展示版：沒有立即更新、記錄成交、設定與提示紀錄
+- 公開網站是唯讀展示版：沒有立即更新、記錄成交、設定與提示紀錄；在 GitHub Actions 產生的 `data.js` 也不帶操作紀錄與成交（只存在私人 repo）
 - 兩根 K 線之間不會重新發布，網頁上的「現價」最多落後 4 小時
 - 公開 repo 若 60 天沒有任何提交，GitHub 會停用內建排程（cron-job.org 觸發不受影響）
 
@@ -50,7 +50,7 @@ cd ~/Documents/Claude\ Code/signals && .venv/bin/python paper/server.py
 | `engine.py` | 抓資料、跑策略（啟動時自檢與 `backtest.donchian` 逐根一致）、產生提示、寫 `web/data.js` |
 | `server.py` | 本機網站與 API（只綁 127.0.0.1；拒絕其他網站來源的請求） |
 | `config.json` | 模式、資金、起算日、權重、K 線顏色 |
-| `web/` | 網頁（預設深色、可切淺色；每張圖右上 ⛶ 放大鋪滿視窗，支援的瀏覽器會同時進入系統全螢幕，Esc 離開；K 線圖用 TradingView lightweight-charts 4.2.0，從 unpkg 載入，需要網路） |
+| `web/` | 網頁（「瓷 Porcelain」設計：日間／夜間預設跟隨系統，右上可手動切換並記住；字體 Manrope＋Noto Sans TC 從 Google Fonts 載入；每張圖右上 ⛶ 放大鋪滿視窗，支援的瀏覽器會同時進入系統全螢幕，Esc 離開；K 線圖用 TradingView lightweight-charts 4.2.0，從 unpkg 載入，需要網路） |
 | `data/` | OKX BTC-USDT 現貨 4H K 線（第一次從 `../data/okx_btc_4h.csv` 複製，之後每次補新的） |
 | `state/signals_log.csv` | 每次發出的操作指令（事後對照用）；雲端版存在私人 repo signals-state，本機版寫在這裡，兩份各自獨立 |
 | `state/fills.csv` | 你輸入的實際成交 |

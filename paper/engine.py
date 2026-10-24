@@ -31,6 +31,7 @@ QTY_STEP = 0.00001                           # OKX 現貨 BTC 最小下單量
 D_COST = 0.0015
 TW = dt.timezone(dt.timedelta(hours=8))
 NS = [20, 30]
+PUBLIC = __import__("os").environ.get("GITHUB_ACTIONS") == "true"   # 在 GitHub Actions 跑 = 要發布到公開網站
 
 def qty_floor(x):
     return float(np.floor(x / QTY_STEP + 1e-9) * QTY_STEP)
@@ -559,7 +560,8 @@ def main(offline=False, notify=True):
             "monthly": monthly(tot_bt),
         },
         "status": status, "prompts": prompts,
-        "log": log.fillna("").to_dict("records")[-200:], "fills": fills,
+        # 公開網站（GitHub Actions 發布）不帶操作紀錄與成交：紀錄只存在私人 repo，展示版本來也隱藏這兩區
+        "log": [] if PUBLIC else log.fillna("").to_dict("records")[-200:], "fills": [] if PUBLIC else fills,
     }
     (WEB / "data.js").write_text("window.PAPER_DATA = " + json.dumps(out, ensure_ascii=False, separators=(",", ":"), default=float) + ";\n")
     print(f"[{dt.datetime.now(TW):%Y-%m-%d %H:%M}] 最後收盤 K 線 {tw(T)}–{tw(next_open)[-5:]}（台灣）收盤 {k.close.iloc[-1]:,.1f}；新增 K 線 {upd['candles']}；"
