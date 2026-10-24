@@ -1,7 +1,7 @@
 # Signal Tower 公開展示版：從 OKX 抓資料、重跑引擎，有新的 4H K 線才發布到 GitHub Pages。
 # 準時觸發靠外部排程（cron-job.org 呼叫 workflow_dispatch，每根 4H 收盤後 2 分鐘）；
 # GitHub 內建排程常延遲、整次跳過，只留作備援（每 15 分鐘嘗試，沒有新 K 線就不發布）。
-# 操作指令紀錄（signals_log.csv）存在私人 repo btc-backtest-state：執行前取回到 paper/state/，有新指令才提交推回。
+# 操作指令紀錄（signals_log.csv）存在私人 repo signals-state：執行前取回到 paper/state/，有新指令才提交推回。
 # 用部署金鑰（secret STATE_DEPLOY_KEY，只有那個 repo 的寫入權限）；取回或推送失敗時網站照常發布，但整次執行標為失敗。
 name: 更新並發布 Signal Tower
 
@@ -46,7 +46,7 @@ jobs:
         continue-on-error: true
         uses: actions/checkout@v4
         with:
-          repository: ${{ github.repository_owner }}/btc-backtest-state
+          repository: ${{ github.repository_owner }}/signals-state
           ssh-key: ${{ secrets.STATE_DEPLOY_KEY }}
           path: paper/state
           fetch-depth: 0
@@ -108,5 +108,5 @@ jobs:
     steps:
       - name: 操作指令紀錄沒有存到
         run: |
-          echo "::error::操作指令紀錄沒有存到 btc-backtest-state（見 build 的「取回／保存操作指令紀錄」步驟）；網站照常發布"
+          echo "::error::操作指令紀錄沒有存到 signals-state（見 build 的「取回／保存操作指令紀錄」步驟）；網站照常發布"
           exit 1
